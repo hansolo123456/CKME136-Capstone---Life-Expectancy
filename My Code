@@ -1,0 +1,191 @@
+# CKME136 Capstone Project - Twitter Gender Identifier
+
+install.packages('jsonlite')
+install.packages('dplyr')
+install.packages('NLP')
+install.packages('lattice')
+install.packages('ggplot2')
+install.packages('tm')
+install.packages('ROCR')
+install.packages('caret')
+install.packages('e1071')
+install.packages('kknn')
+install.packages('corrplot')
+install.packages('tidyr')
+install.packages('qdap')
+install.packages(‘SnowballC’)
+install.packages(‘wordcloud)
+
+library('jsonlite')
+library('dplyr')
+library('NLP')
+library('lattice')
+library('ggplot2')
+library('tm')
+library('ROCR') # visualize performance of classifiers
+library('caret') # for confusion matrix
+library('e1071') # may be needed for caret
+library('kknn')
+library('corrplot')
+library('tidyr')
+library('qdap')
+library('SnowballC') # for visualisations
+library('wordcloud') # for wordclouds
+library(RColorBrewer) # Colours for wordcloud package
+
+#Importing the original raw data
+tweets <- read.csv("gender-classifier-DFE-791531.csv", sep=",", header=TRUE)
+
+# Using Excel we can remove rows that have columns (Attributes) with missing data
+# Importing the clean data with blank rows removed
+mod_tweets <- read.csv("gender-classifier-DFE-791531 (Modified CSV).csv", sep=",", header=TRUE)
+
+# Exploring the data
+# Checking to see that the headers in the clean data imported correctly
+colnames(mod_tweets)
+
+#Identify the class of each column in mod_tweets
+for (i in 1:26) {
++       print(i)
++       print(names(mod_tweets[i]))
++       print(class(mod_tweets[1,i]))
++        }
+
+
+# Looking for attribute classes, number of objects and number of variables
+nrow(mod_tweets)
+# From this we can see that we have imported 18,835 rows
+
+ncol(mod_tweets)
+# From this we can see that we have imported all 26 attributes
+
+str(mod_tweets) # to get more information about each attribute
+
+# creating a new data frame with only the relevant columns, “gender” and “text”.
+basic_tweets <- data.frame(mod_tweets$gender, mod_tweets$text)
+
+# from the Data environment in R Studio, we can see that the new data frame has imported the correct number of values (rows), 18835 and variables(attributes or columns), 2.
+# This is the data frame we will work with.
+
+# Checking the column headers
+colnames (basic_tweets)
+# The column headers need renaming
+names(basic_tweets) <- c("gender", "text")
+# Verifying the name change
+colnames (basic_tweets)
+# Verifying the Class of basic tweets and each attribute in basic_tweets
+class(basic_tweets)
+class(basic_tweets$gender)
+class(basic_tweets$text)
+
+# Attribute “text” in basic_tweets need to be converted to a string (character) in order to be tokenized, processed and counted
+basic_tweets[,2] <- sapply(basic_tweets[,2], as.character)
+
+# Verifying class again
+class(basic_tweets$gender)
+class(basic_tweets$text)
+
+# Creating the training and Testing Sets in 2 different ratios
+# First an 80/20 Set
+# create a variable called tweet80 that samples 80% of the rows in basic_tweets
+# this variable holds 80% of the row numbers
+tweet80 <-sample(nrow(basic_tweets),floor(nrow(basic_tweets)*0.8))
+train80 <- basic_tweets[tweet80,] # assigns sampled data to train80
+test20 <- basic_tweets[-tweet80,] # assigns the 20% balance to test20
+ 
+# Next we create a 70/30 set for comparison
+# create a variable called tweet70 that samples 70% of the rows in basic_tweets
+# this variable holds 70% of the row numbers
+tweet70 <-sample(nrow(basic_tweets),floor(nrow(basic_tweets)*0.7))
+train70 <- basic_tweets[tweet70,] # assigns sampled data to train70
+test30 <- basic_tweets[-tweet70,] # assigns the 30% balance to test30
+
+# Now we do a further split of the training sets into one data frame for each unique genders
+unique(train80$gender)
+train80_f <- train80[train80$gender == "female", ]
+train80_m <- train80[train80$gender == "male", ]
+train80_b <- train80[train80$gender == "brand", ]
+
+unique(train70$gender) # To identify all the unique values in the gender attribute
+train70_f <- train70[train70$gender == "female", ]
+train70_m <- train70[train70$gender == "male", ]
+train70_b <- train70[train70$gender == "brand", ]
+
+# Now to simplify the processing and counting of each training file, we remove the gender column since all the items in that particular file belong to the identified gender in the step above
+# The resulting data frame contains only 1 attribute “text”, all of which belong to one gender
+train80_f$gender <- NULL
+train80_m$gender <- NULL
+train80_b$gender <- NULL
+
+train70_f$gender <- NULL
+train70_m$gender <- NULL
+train70_b$gender <- NULL
+
+# Now we need to clean the training data
+# Using gsub and Regex to change all to lowercase and remove all punctuation and non-alphanumeric characters
+tr80f1 <- gsub("[^[:alnum:][:space:]@]", "", tolower(train80_f))
+tr80m1 <- gsub("[^[:alnum:][:space:]@]", "", tolower(train80_m))
+tr80b1 <- gsub("[^[:alnum:][:space:]@]", "", tolower(train80_b))
+
+tr70f1 <- gsub("[^[:alnum:][:space:]@]", "", tolower(train70_f))
+tr70m1 <- gsub("[^[:alnum:][:space:]@]", "", tolower(train70_m))
+tr70b1 <- gsub("[^[:alnum:][:space:]@]", "", tolower(train70_b))
+
+# Using gsub and Regex to remove all twitter handles (beginning with “@”)
+tr80f1a <- gsub("@([a-zA-Z0-9]|[_])*", "", tr80f1)
+tr80m1a <- gsub("@([a-zA-Z0-9]|[_])*", "", tr80m1)
+tr80b1a <- gsub("@([a-zA-Z0-9]|[_])*", "", tr80b1)
+
+tr70f1a <- gsub("@([a-zA-Z0-9]|[_])*", "", tr70f1)
+tr70m1a <- gsub("@([a-zA-Z0-9]|[_])*", "", tr70m1)
+tr70b1a <- gsub("@([a-zA-Z0-9]|[_])*", "", tr70b1)
+
+# Creating a new dataframe with word frequency (Counting the occurences of each word) using wfdf (from the qdap package)
+tr80f_df <- wfdf(tr80f1a)
+tr80m_df <- wfdf(tr80m1a)
+tr80b_df <- wfdf(tr80b1a)
+
+tr70f_df <- wfdf(tr70f1a)
+tr70m_df <- wfdf(tr70m1a)
+tr70b_df <- wfdf(tr70b1a)
+
+# Sort the counted words in descending order by attribute “all”
+colnames(tr80f_df)
+
+tr80f_sort <- tr80f_df[rev(order(tr80f_df$all)), ]
+tr80m_sort <- tr80m_df[rev(order(tr80m_df$all)), ]
+tr80b_sort <- tr80b_df[rev(order(tr80b_df$all)), ]
+
+tr70f_sort <- tr70f_df[rev(order(tr70f_df$all)), ]
+tr70m_sort <- tr70m_df[rev(order(tr70m_df$all)), ]
+tr70b_sort <- tr70b_df[rev(order(tr70b_df$all)), ]
+
+# Removing connecting words like “and’, “the”, “of”, etc.
+# using the ‘tm’ package
+myStopwords <- c(stopwords('english'))
+# Removing all rows where one of the words in myStopwords is found
+tr80f2 <- tr80f_sort[ ! tr80f_sort$Words %in% myStopwords,]
+tr80m2 <- tr80m_sort[ ! tr80m_sort$Words %in% myStopwords,]
+tr80b2 <- tr80b_sort[ ! tr80b_sort$Words %in% myStopwords,]
+
+tr70f2 <- tr70f_sort[ ! tr70f_sort$Words %in% myStopwords,]
+tr70m2 <- tr70m_sort[ ! tr70m_sort$Words %in% myStopwords,]
+tr70b2 <- tr70b_sort[ ! tr70b_sort$Words %in% myStopwords,]
+
+# We now have clean, sorted and ordered dataframes: tr80f2, tr80m2, tr80b2, tr70f2, tr70m2, tr70b2
+
+# Visualizing Wordclouds with R
+wordcloud(tr70f2$Words, tr70f2$all, scale=c(5,1), colors=brewer.pal(9,"OrRd"),rot.per=0, max.words=50, random.order=F)
+text(x=0.5, y=1, "Train70 Female Words")
+wordcloud(tr70m2$Words, tr70m2$all, scale=c(5,1), colors=brewer.pal(9,"OrRd"),rot.per=0, max.words=50, random.order=F)
+text(x=0.5, y=1, "Train70 Male Words")
+wordcloud(tr70b2$Words, tr70b2$all, scale=c(5,1), colors=brewer.pal(9,"Set1"),rot.per=0, max.words=50, random.order=F)
+text(x=0.5, y=1, "Train70 Brand Words")
+wordcloud(tr80f2$Words, tr80f2$all, scale=c(5,1), colors=brewer.pal(9,"OrRd"),rot.per=0, max.words=50, random.order=F)
+text(x=0.5, y=1, "Train80 Female Words")
+wordcloud(tr80m2$Words, tr80m2$all, scale=c(5,1), colors=brewer.pal(9,"OrRd"),rot.per=0, max.words=50, random.order=F)
+text(x=0.5, y=1, "Train80 Male Words")
+wordcloud(tr80b2$Words, tr80b2$all, scale=c(5,1), colors=brewer.pal(9,"Set1"),rot.per=0, max.words=50, random.order=F)
+text(x=0.5, y=1, "Train80 Brand Words")
+
+# Now need to build the training model and test it agains the test data.
