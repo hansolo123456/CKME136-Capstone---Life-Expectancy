@@ -64,7 +64,8 @@ str(mod_tweets) # to get more information about each attribute
 # creating a new data frame with only the relevant columns, “gender” and “text”.
 basic_tweets <- data.frame(mod_tweets$gender, mod_tweets$text)
 
-# from the Data environment in R Studio, we can see that the new data frame has imported the correct number of values (rows), 18835 and variables(attributes or columns), 2.
+# from the Data environment in R Studio, we can see that the new data frame has imported the correct number of values (rows) - 18835
+# and variables(attributes or columns), 2.
 # This is the data frame we will work with.
 
 # Checking the column headers
@@ -111,7 +112,8 @@ train70_f <- train70[train70$gender == "female", ]
 train70_m <- train70[train70$gender == "male", ]
 train70_b <- train70[train70$gender == "brand", ]
 
-# Now to simplify the processing and counting of each training file, we remove the gender column since all the items in that particular file belong to the identified gender in the step above
+# Now to simplify the processing and counting of each training file, we remove the gender column since all the items in that 
+# particular file belong to the identified gender in the step above
 # The resulting data frame contains only 1 attribute “text”, all of which belong to one gender
 train80_f$gender <- NULL
 train80_m$gender <- NULL
@@ -188,4 +190,4 @@ text(x=0.5, y=1, "Train80 Male Words")
 wordcloud(tr80b2$Words, tr80b2$all, scale=c(5,1), colors=brewer.pal(9,"Set1"),rot.per=0, max.words=50, random.order=F)
 text(x=0.5, y=1, "Train80 Brand Words")
 
-# Now need to build the training model and test it agains the test data.
+# Now I need to build the training model and test it agains the test data.
