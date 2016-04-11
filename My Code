@@ -1,0 +1,307 @@
+> library(plyr)
+
+# Importing the Kaggle curated data (Long format)
+> indicators <- read.csv("Indicators.csv", 
++       sep=",", # define the separator
++       header=TRUE, #Use the column headers
++       stringsAsFactors=FALSE, # Do not convert the character data types
++       strip.white=TRUE, # Remove leading and trailing white space
++       na.strings = c("NA","NaN","","NULL") # empty/missing strings as NA)
+
+# Exploring the Data
+> summary(indicators)
+> colnames(indicators)
+
+# Identifying the class of each column
+> lapply(indicators, class)
+
+# Looking at Life Expectancy globally for the years 1960, 1980, 2000, 2015
+# parts of the code have been borrowed and modified from Kaggle User https://www.kaggle.com/benhamner/d/worldbank/world-development-indicators/r-ggplot-mapping-example
+
+> library(ggplot2)
+> library(maps)
+> library(readr)
+
+> indicatorName <- "Life expectancy at birth, total (years)"
+> indicator1960 <- 1960
+> indicator1980 <- 1980
+> indicator2000 <- 2000
+> indicator2013 <- 2013
+
+# Pull (filter) only rows that measure this particular Life Expe tancy, with the corresponding year
+> filtered1960 <- indicators[indicators$IndicatorName==indicatorName & indicators$Year==indicator1960,]
+> filtered1980 <- indicators[indicators$IndicatorName==indicatorName & indicators$Year==indicator1980,]
+> filtered2000 <- indicators[indicators$IndicatorName==indicatorName & indicators$Year==indicator2000,]
+> filtered2013<- indicators[indicators$IndicatorName==indicatorName & indicators$Year==indicator2013,]
+
+# Standardizing and Correcting country names
+> correction <- c("Antigua and Barbuda"="Antigua", "Bahamas, The"="Bahamas", "Brunei Darussalam"="Brunei", "Cabo Verde"="Cape Verde", "Congo, Dem. Rep."="Democratic Republic of the Congo", "Congo, Rep."="Republic of Congo", "Cote d'Ivoire"="Ivory Coast", "Egypt, Arab Rep."="Egypt", "Faeroe Islands"="Faroe Islands", "Gambia, The"="Gambia", "Iran, Islamic Rep."="Iran", "Korea, Dem. Rep."="North Korea", "Korea, Rep."="South Korea", "Kyrgyz Republic"="Kyrgyzstan", "Lao PDR"="Laos", "Macedonia, FYR"="Macedonia", "Micronesia, Fed. Sts."="Micronesia", "Russian Federation"="Russia", "Slovak Republic"="Slovakia", "St. Lucia"="Saint Lucia", "St. Martin (French part)"="Saint Martin", "St. Vincent and the Grenadines"="Saint Vincent", "Syrian Arab Republic"="Syria", "Trinidad and Tobago"="Trinidad", "United Kingdom"="UK", "United States"="USA", "Venezuela, RB"="Venezuela", "Virgin Islands (U.S.)"="Virgin Islands", "Yemen, Rep."="Yemen")
+
+# Apply the country name corrections to the selected year
+> for (c in names((correction))) {
+filtered1960[filtered1960$CountryName==c,"CountryName"] = correction[c]} # for 1960
+
+> for (c in names((correction))) {
+filtered1980[filtered1980$CountryName==c,"CountryName"] = correction[c]} # for 1980
+
+> for (c in names((correction))) {
+filtered2000[filtered2000$CountryName==c,"CountryName"] = correction[c]} # for 2000
+
+> for (c in names((correction))) {
+filtered2013[filtered2013$CountryName==c,"CountryName"] = correction[c]} # for 2013
+
+
+# Create the outline of the world map (one for each year)
+> map.world1960 <- merge(x=map_data(map="world"), y=filtered1960[, c("CountryName","Value")], by.x="region", by.y="CountryName", all.x=TRUE)
+> map.world1960 <- map.world1960[order(map.world1960$order),]
+
+> map.world1980 <- merge(x=map_data(map="world"), y=filtered1980[, c("CountryName","Value")], by.x="region", by.y="CountryName",all.x=TRUE)
+> map.world1980 <- map.world1980[order(map.world1980$order),]
+
+> map.world2000 <- merge(x=map_data(map="world"), y=filtered2000[, c("CountryName","Value")], by.x="region", by.y="CountryName", all.x=TRUE)
+> map.world2000 <- map.world2000[order(map.world2000$order),]
+
+> map.world2013 <- merge(x=map_data(map="world"), y=filtered2013[, c("CountryName","Value")], by.x="region", by.y="CountryName", all.x=TRUE)
+> map.world2013 <- map.world2013[order(map.world2013$order),]
+
+#Creating the plots (Repeate for each year)
+> p1960 <- ggplot(map.world1960) +
++     geom_map(map=map.world1960, aes(map_id=region, x=long, y=lat, fill=Value)) + 
++     scale_fill_gradient(low = "orange1", high = "orangered4", guide = "colourbar") +
++     coord_equal() +
++     theme(axis.line=element_blank(),
++           axis.text.x=element_blank(),
++           axis.text.y=element_blank(),
++           axis.ticks=element_blank(),
++           axis.title.x=element_blank(),
++           axis.title.y=element_blank(),
++           panel.background=element_blank(),
++           panel.border=element_blank(),
++           panel.grid.major=element_blank(),
++           panel.grid.minor=element_blank(),
++           plot.background=element_blank(),
++           legend.title=element_blank(),
++           legend.position="bottom") +
++     ggtitle(paste0(indicatorName, " in ", indicator1960))
+# Repeat the above code using p1980, p2000, p2015
+
+# Save the plots
+> ggsave("LE_map1960.png", p1960, width=7, height=4, units="in")
+> ggsave("LE_map1980.png", p1980, width=7, height=4, units="in")
+> ggsave("LE_map2000.png", p2000, width=7, height=4, units="in")
+> ggsave("LE_map2013.png", p2013, width=7, height=4, units="in")
+
+
+Looking at graphs for Life Expectancy by region
+# Parts of the code inspired by Kaggle User https://www.kaggle.com/kerrabi/d/worldbank/world-development-indicators/r-rworldmap-mapping-example/code 
+# First need to define create a list containing the region codes
+# These are included in the Indicators.csv file under Country Code
+# Using Excel to identify the relevant country codes we can use them to create a new r list containing the region codes
+> RegionCodes <- c('ARB', 'ARB', 'CSS', 'CEB', 'EAS', 'EAP', 'EMU', 'ECS', 'ECA', 'EUU', 'FCS', 'HPC', 'HIC', 'NOC', 'OEC', 'LCN', 'LAC', 'LDC', 'LMY', 'LIC', 'LMC', 'MEA', 'MNA', 'MIC', 'NAC', 'INX', 'OED', 'OSS', 'PSS', 'SST', 'SAS', 'SSF', 'SSA', 'UMC', 'WLD')
+# And then subset a new list that does not contain the RegionCodes
+> temp <- unique(indicators$CountryCode)
+> CountryCodes <- temp[!temp %in% RegionCodes]
+
+# Now to pull all the corresponding to the relevant Country Codes
+> regions <- indicators[indicators$CountryCode %in% RegionCodes, ]
+> countries <- indicators[indicators$CountryCode %in% CountryCodes, ]
+
+# Plotting
+> Indicator_Name <- " Life expectancy at birth, total (years)" # Setting the plot metric
+> LE <- regions[regions$IndicatorCode=="SP.DYN.LE00.IN",]
+> LE <- LE[, -c(3,4) ] # Removing IndicatorCode and IndicatorName
+
+> g <- ggplot(LE, aes(Year, Value)) +stat_smooth(method=lm)+ geom_line() + facet_wrap(~CountryName,scale='free'
+
+#from the “ggthemes” package
+> g + ggtitle(paste0(Indicator_Name, " -Evolution- "))+theme_economist(dkpanel=TRUE,base_size = 6, base_family="Calibri")+scale_colour_economist()
+
+
+# Now to run some Matrices and Correlations
+# First we need to clean and simplify the imported data and get it into the correct format for correlation analysis
+
+# Reducing the number of columns and simplifying the data
+> colnames(indicators)
+
+# Creating a new data frame to contain the Country Name and Country Code (From the indicators dataframe)
+> country_name_code <- unique(indicators[,1:2])
+# Verifying
+> colnames(country_name_code)
+
+# Creating a new data frame to contain the Indicator Name and Indicator Code (From the indicators dataframe)
+> index_name_code <- unique(indicators[,3:4])
+# Verifying
+> colnames(index_name_code)
+
+# Now we can remove the Indicator.Code and Country.Code attributes from the “indicators” dataframe
+> indicators <- indicators[,-c(2,4)]
+
+# for the next step, I will need to cast the remaining data into a wide format where I will use averages for each indicator.
+# I do not need the CountryName column for this so I will delete it to simplify
+> indi <- indicators[,-1]
+# Verifying
+> colnames(indi)
+
+# Identifying the class of each column
+> lapply(indi, class)
+
+# Sorting the file by IndicatorName, by Year
+> indi <- indi [order(indi$IndicatorName, indi$Year), ]
+
+# Using Excel, we can see that 2015 has nearly no records (approximately 3% of total)
+# We will therefore delete all records for 2015
+> indi2 <- subset(indi, !indi[,2]=="2015")
+
+# The following 2 attributes contain only a base number for 2015 used for comparison.  These can safely be deleted.
+> indi2 <- subset(indi2, !indi2[,1]=="2005 PPP conversion factor, private consumption (LCU per international $)")
+> indi2 <- subset(indi2, !indi2[,1]=="2005 PPP conversion factor, GDP (LCU per international $)")
+
+
+
+
+# We will now delete all Indexes (columns) that do not have at least 15 years of data (ie. at least 25% of the available years)
+# First we create a dataframe that lists all of the indicators, in the dataset, showing the number of years where data exists.
+> library(dplyr)
+> indi2_about <- indi2 %>% group_by(IndicatorName) %>%  
++     summarise(num_years = n_distinct(Year))
+
+# sorting by ascending number of years
+> indi2_about <- indi2_about[order(indi2_about$num_years), ]
+
+> colnames(indi2_about)
+
+# Creating a variable with a list of Indicator names that have less than 15 years of data.
+> threshold <- 15
+> below15 <- subset(indi2_about$IndicatorName, indi2_about$num_years < threshold)
+
+# Now we can use this variable to remove the matching Indicators in indi2
+> indi3 <- indi2[!indi2$IndicatorName %in% below15, ]
+
+# Now we will cast the indi3 dataframe into a wideformat so we can run matrix tables and correlations
+
+# Using the “reshape2” package
+> library(reshape2)
+> indi_cast <- dcast(indi3, Year ~ IndicatorName, fun.aggregate=mean, fill=0, na.rm=TRUE)
+
+# Exploring the cast file
+> unique(indi_cast$Year)
+
+# We can now safely eliminate the “Year” column from indi_cast
+> indi_cast <- subset(indi_cast[,-1])
+
+
+
+# Running some correlations
+> library(corrplot)
+> library(caret)
+
+> indi_cor <- cor(indi_cast)
+
+# Writing the file to an exernal csv for visual analysis in Excel
+> write.csv(indi_cor, file="Indi_Cor.csv")
+
+ 
+# Now we will pull indicators that show a strong correlation to the target indicator, "Life expectancy at birth, total (years)"
+# That is, any indicators that have > 0.75 correlation to the target Indicator
+> target <- "Life expectancy at birth, total (years)"
+# Using Excel we can see that our target indicator is column/row 541
+# Verifying in R
+> colnames(indi_cor[,541])
+> rownames(indi_cor[541,])
+
+# Pulling only the Life expectancy column (and all the indicators in the rows)
+> LE_total <- as.data.frame(indi_cor[,541])
+# Pulling only rows where value is > 0.75 (ie. strong correlation to Life Expectancy)
+> temp <- subset(LE_total, LE_total[,1] > 0.75)
+
+# from the “dplyr” library
+> temp2 <- add_rownames(temp, "IndicatorName") # Adding the column name back in
+
+# removing the obvious and closely related indicators from the selection
+> temp2a <- temp2[-c(11:13, 16:17), ]
+
+# creating a new dataframe called “strongest_cor” to store these indicators for future use.
+> strongest_cor <- temp2a
+
+# Pulling out just the column names of the 12 strongest indicators of Life Expectancy
+> strong_indi <- strongest_cor[,1]
+
+# Now let’s explore the Pearson and Spearman correlations on the cast data
+# Our Target Variable, “Life expectancy at birth, total (years)” is column number 541.
+> ind_pearson <- as.data.frame(cor(indi_cast, indi_cast[,541], method="pearson"))
+> ind_spearman <- as.data.frame(cor(indi_cast, indi_cast[,541], method="spearman"))
+
+# Adding the row names back into the table as a column
+> ind_pearson <- add_rownames(ind_pearson, "IndicatorName")
+> ind_spearman <- add_rownames(ind_spearman, "IndicatorName")
+
+# Now need to sort descending based on value to find the highest correlations.
+> ind_pearson <- ind_pearson[order(-ind_pearson$V1), ]
+> ind_spearman <- ind_spearman[order(-ind_spearman$V1), ]
+
+# Now to remove the obvious first five rows
+> ind_pearson <- ind_pearson[-c(1:5),]
+> ind_spearman <- ind_spearman[-c(1:5),]
+
+# Plotting the above visually
+> plot(ind_pearson$V1, type="p",col="red", xlab="IndicatorName", main="Pearson Correlation to Life Expectancy (Total)")
+> plot(ind_spearman$V1, type="p",col="blue", xlab="IndicatorName", main="Spearman Correlation to Life Expectancy (Total)")
+
+# Now to build the Prediction Model
+# Using Regression 
+# First a Multivariate Linear Model based on the original full correlation matrix
+# First we need to change the name of our target variable to simplify creating a model
+> colnames(indi_cor)[541] > colnames(indi_cor)[541] <- "LIFE.EXPECTANCY"
+
+# Buiding a Multivariate Linear Regression Model
+> indi_cor2 <- as.data.frame(indi_cor)
+> indi_cor2 <- sapply( indi_cor2, as.numeric )
+> indi_cor2 <- as.data.frame(indi_cor2)
+> model_mlr1 <- lm(formula=LIFE.EXPECTANCY ~ ., data=indi_cor2)
+> mlr1_summary <- summary(model_mlr1)
+
+# looking at the model
+> mlr1_summary
+
+# Creating training and testing set using 70/30 random split
+> train1 <- sample(nrow(indi_cor2), floor(nrow(indi_cor2)*.7)) # samples 70% of the rows
+> train70 <- indi_cor2[train1, ] # assigns the sampled data to “train70”
+> test30 <- indi_cor2[-train1, ] # assigns the balance to “test30”
+
+# Creating the training model
+> model_mlr1a <- lm(formula=LIFE.EXPECTANCY ~ ., data=train70)
+
+# Running the prediction
+> prediction30 <- predict(model_mlr1a, interval = "prediction",newdata=test30)
+
+# Running RMSE to evaluate the prediction
+> sqrt(sum((prediction30[,"fit"]-test30$LIFE.EXPECTANCY)^2)/nrow(test30))
+
+# Now a Multinomial Logistic Regression
+> library(nnet)
+# Using the existing testing/training splits created above
+
+# Creating the training model
+> model_mnlm <- multinom(formula=LIFE.EXPECTANCY ~ ., data=train70,MaxNWts = 1000000)
+
+
+# Now another Prediction Model
+# I will now create a prediction model using the “strongest_cor” dataframe created above
+# That is, the 12 identified strongest correlation indicators
+
+# Pulling just the names of the strongest indicators
+> strong_indi <- strongest_cor[,1]
+
+> strong <- as.data.frame(c(indi_cast[541], indi_cast[,colnames(indi_cast) %in% strong_indi]))
+> colnames(strong)
+# First need to change the name of our target indicator for simplicity
+> colnames(strong)[1] <- "LIFE.EXPECTANCY"
+
+# Using Pearson
+> cor(strong, strong$LIFE.EXPECTANCY, method="pearson")
+# Using Spearman
+> cor(strong, strong$LIFE.EXPECTANCY, method="spearman")
+
+# Visualizing this correlation
+> corrplot(cor(strong), method="square", xlab=FALSE, ylab=FALSE, 
++      type="upper", tl.pos="d")
